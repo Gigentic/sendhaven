@@ -66,7 +66,7 @@ export default function EscrowDetailPage() {
   }
 
   // Format amount for success modal
-  const decimals = chainId ? getStablecoinDecimals(chainId) : 18;
+  const decimals = chainId ? getStablecoinDecimals(chainId) : 6;
   const formattedAmount = formatUnits(details.escrowAmount, decimals);
 
   return (

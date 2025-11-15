@@ -421,28 +421,29 @@ export const ERC20_ABI = [
 export function getMasterFactoryAddress(chainId: number): Address {
   const addresses: Record<number, Address> = {
     5042002: process.env.NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_ARC! as Address, // Arc Testnet
-    11142220: process.env.NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_SEPOLIA! as Address,
-    42220: process.env.NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_CELO! as Address,
     31337: process.env.NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_HARDHAT as Address || "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512" as Address,
   };
 
   if (!addresses[chainId]) {
-    throw new Error(`No MasterFactory address configured for chain ${chainId}. Supported chains: Arc Testnet (5042002), Celo Sepolia (11142220), Celo Mainnet (42220)`);
+    throw new Error(`No MasterFactory address configured for chain ${chainId}. Only Arc Testnet (5042002) is supported. Use the bridge feature to transfer USDC to Arc Testnet.`);
   }
 
   return addresses[chainId];
 }
 
+/**
+ * Get the USDC address for a given chain
+ * Note: This function was originally named getCUSDAddress when Celo chains were supported.
+ * The name is kept for compatibility, but now only returns USDC addresses.
+ */
 export function getCUSDAddress(chainId: number): Address {
   const addresses: Record<number, Address> = {
     5042002: "0x3600000000000000000000000000000000000000" as Address, // Arc Testnet USDC (native ERC-20 interface)
-    11142220: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as Address, // Celo Sepolia cUSD
-    42220: "0x765de816845861e75a25fca122bb6898b8b1282a" as Address, // Celo Mainnet cUSD
-    31337: process.env.NEXT_PUBLIC_CUSD_ADDRESS_HARDHAT as Address || "0x5FbDB2315678afecb367f032d93F642f64180aa3" as Address, // Hardhat
+    31337: process.env.NEXT_PUBLIC_USDC_ADDRESS_HARDHAT as Address || "0x5FbDB2315678afecb367f032d93F642f64180aa3" as Address, // Hardhat
   };
 
   if (!addresses[chainId]) {
-    throw new Error(`No stablecoin address configured for chain ${chainId}. Supported chains: Arc Testnet (5042002), Celo Sepolia (11142220), Celo Mainnet (42220)`);
+    throw new Error(`No USDC address configured for chain ${chainId}. Only Arc Testnet (5042002) is supported. Use the bridge feature to transfer USDC to Arc Testnet.`);
   }
 
   return addresses[chainId];
@@ -450,29 +451,25 @@ export function getCUSDAddress(chainId: number): Address {
 
 /**
  * Get the decimals for the stablecoin on a given chain
- * Celo chains use cUSD with 18 decimals
- * Arc uses USDC with 6 decimals
+ * All chains now use USDC with 6 decimals
  */
 export function getStablecoinDecimals(chainId: number): number {
   const decimals: Record<number, number> = {
     5042002: 6,   // Arc Testnet USDC
-    11142220: 18, // Celo Sepolia cUSD
-    42220: 18,    // Celo Mainnet cUSD
-    31337: 18,    // Hardhat (usually cUSD mock)
+    31337: 6,     // Hardhat (USDC mock)
   };
 
-  return decimals[chainId] ?? 18; // Default to 18 if unknown
+  return decimals[chainId] ?? 6; // Default to 6 (USDC standard)
 }
 
 /**
  * Get the stablecoin symbol for display
+ * All chains now use USDC
  */
 export function getStablecoinSymbol(chainId: number): string {
   const symbols: Record<number, string> = {
     5042002: 'USDC',
-    11142220: 'cUSD',
-    42220: 'cUSD',
-    31337: 'cUSD',
+    31337: 'USDC',
   };
 
   return symbols[chainId] ?? 'USDC';

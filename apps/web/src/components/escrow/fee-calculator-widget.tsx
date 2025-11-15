@@ -13,8 +13,8 @@ interface FeeCalculatorWidgetProps {
 }
 
 export function FeeCalculatorWidget({ chainId }: FeeCalculatorWidgetProps = {}) {
-  const decimals = chainId ? getStablecoinDecimals(chainId) : 18;
-  const symbol = chainId ? getStablecoinSymbol(chainId) : 'cUSD';
+  const decimals = chainId ? getStablecoinDecimals(chainId) : 6;
+  const symbol = chainId ? getStablecoinSymbol(chainId) : 'USDC';
   const router = useRouter();
   const [amount, setAmount] = useState("");
 

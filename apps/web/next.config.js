@@ -11,7 +11,7 @@ const nextConfig = {
     } : false,
   },
 
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.externals.push('pino-pretty', 'lokijs', 'encoding')
     config.module.exprContextCritical = false;
 
@@ -19,6 +19,11 @@ const nextConfig = {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       '@react-native-async-storage/async-storage': false,
+    }
+
+    // Exclude Solana packages from server-side bundling (Bridge Kit dependency)
+    if (isServer) {
+      config.externals.push('@solana/web3.js', '@solana/spl-token')
     }
 
     return config

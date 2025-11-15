@@ -10,6 +10,7 @@ SendHaven is a cross-chain escrow protocol. It enables secure peer-to-peer trans
 - Frontend: Next.js 14 (App Router) with Turborepo monorepo
 - Package Manager: pnpm (required)
 - Web3: RainbowKit + wagmi v2 + viem + ethers v6
+- Cross-Chain: Circle Bridge Kit (CCTP for USDC bridging)
 - Authentication: NextAuth with SIWE (Sign-In With Ethereum)
 - Backend Storage: Upstash Redis (KV store for metadata)
 - UI: Radix UI primitives + Tailwind CSS + shadcn/ui
@@ -38,15 +39,17 @@ forge script script/DeployFactory.s.sol --rpc-url $ARC_TESTNET_RPC_URL --broadca
 ## Architecture
 
 ### Chain Configuration
-The app supports multiple chains configured in `apps/web/src/config/wagmi-ssr.ts`:
-- **Arc Testnet** (Chain ID: 5042002) - Primary deployment target
-- **Celo Mainnet** (Chain ID: 42220)
-- **Celo Sepolia** (Chain ID: 11142220) - Testing
+SendHaven supports cross-chain USDC deposits via Circle Bridge Kit while all escrows are deployed on Arc Testnet.
 
-Factory contract addresses are environment-specific and configured in `.env.local`:
-- `NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_ARC`
-- `NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_CELO`
-- `NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_SEPOLIA`
+**Supported Chains** (configured in `apps/web/src/config/wagmi-ssr.ts`):
+- **Arc Testnet** (Chain ID: 5042002) - **Primary escrow deployment chain**
+  - Uses USDC (6 decimals) as native gas token
+  - Factory contract address: `NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_ARC`
+- **Ethereum Sepolia** (Chain ID: 11155111) - Bridge source chain
+- **Base Sepolia** (Chain ID: 84532) - Bridge source chain
+- **Arbitrum Sepolia** (Chain ID: 421614) - Bridge source chain
+
+**Important**: Escrows can ONLY be created on Arc Testnet. Users on other chains will be prompted to bridge their USDC to Arc via the integrated Bridge Kit interface.
 
 ### Smart Contract Architecture
 SendHaven uses a **factory pattern** for escrow deployment:
@@ -100,12 +103,42 @@ Key files:
 
 Admin routes check `ADMIN_WALLET_ADDRESS` environment variable server-side.
 
+### Bridge Kit Integration
+SendHaven integrates Circle's Bridge Kit to enable cross-chain USDC deposits:
+
+**Flow:**
+1. User on Sepolia/Base Sepolia/Arbitrum Sepolia visits `/create`
+2. App detects user is not on Arc Testnet
+3. Shows `BridgePrompt` component with explanation + "Open Bridge" button
+4. User clicks → Opens `BridgeModal` with pre-set direction (current chain → Arc)
+5. User selects amount → Bridge Kit handles: approval, burn on source, attestation, mint on Arc
+6. After successful bridge, user can create escrow on Arc
+
+**Key Features:**
+- **Bidirectional**: Users can bridge USDC to Arc (for escrows) or back to origin chains (after completing escrows)
+- **Trust-minimized**: Uses Circle's CCTP protocol (burn on source, mint on destination)
+- **Native USDC**: No wrapped tokens, always native USDC
+- **Real-time tracking**: Shows elapsed time and transaction hashes
+
+**Key Files:**
+- `apps/web/src/lib/bridge-config.ts`: Token addresses, chain IDs, helper functions
+- `apps/web/src/hooks/use-bridge.ts`: Core bridging logic with balance fetching
+- `apps/web/src/components/bridge/bridge-modal.tsx`: Bridge UI with bidirectional toggle
+- `apps/web/src/components/bridge/bridge-prompt.tsx`: Prompt shown on `/create` for non-Arc users
+- `apps/web/src/app/bridge/page.tsx`: Standalone bridge page (accessible from navigation)
+
+**Supported Bridge Directions:**
+- Sepolia ↔ Arc Testnet
+- Base Sepolia ↔ Arc Testnet
+- Arbitrum Sepolia ↔ Arc Testnet
+
 ### Component Architecture
 The app follows **Next.js App Router** conventions:
 
 **Pages (apps/web/src/app/):**
 - `/` - Landing page
-- `/create` - Create new escrow
+- `/create` - Create new escrow (shows bridge prompt if not on Arc)
+- `/bridge` - Standalone bridge page for USDC cross-chain transfers
 - `/escrow/[address]` - View escrow details
 - `/dashboard` - User's escrow list
 - `/admin/disputes` - Admin dispute management
@@ -126,6 +159,7 @@ Hooks in `apps/web/src/hooks/` encapsulate all Web3 interactions and follow a co
 - `use-dispute-escrow.ts`: Bond approval → Raise dispute → Store reason
 - `use-complete-escrow.ts`: Release funds to recipient
 - `use-approve-spending-cap.ts`: Generic ERC20 approval handler
+- `use-bridge.ts`: **NEW** - Cross-chain USDC bridging via Circle Bridge Kit
 
 **Query Hooks** (return data with loading/error states):
 - `use-escrow-details.ts`: Fetch on-chain + off-chain escrow data
@@ -147,17 +181,25 @@ ABIs are in `apps/web/src/lib/escrow-config.ts` (extracted from Foundry builds).
 
 ## Important Patterns
 
-### Multi-Chain Contract Address Resolution
-Factory addresses vary by chain. Use this helper pattern:
+### USDC Token Addresses
+SendHaven now uses USDC exclusively (6 decimals) on all chains:
+
+**Arc Testnet**: `0x3600000000000000000000000000000000000000` (native ERC-20 interface)
+**Ethereum Sepolia**: `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` (Circle Bridge Kit USDC)
+**Base Sepolia**: `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (Circle Bridge Kit USDC)
+**Arbitrum Sepolia**: `0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d` (Circle Bridge Kit USDC)
+
+All USDC addresses are centralized in `apps/web/src/lib/bridge-config.ts` under `CHAIN_TOKENS`.
+
+### Factory Contract Resolution
+Only Arc Testnet supports escrow contracts:
 ```typescript
-// apps/web/src/lib/contract-helpers.ts
-export function getFactoryAddress(chainId: number): Address {
-  switch (chainId) {
-    case 5042002: return process.env.NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_ARC!;
-    case 42220: return process.env.NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_CELO!;
-    case 11142220: return process.env.NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_SEPOLIA!;
-    default: throw new Error(`Unsupported chain: ${chainId}`);
+// apps/web/src/lib/escrow-config.ts
+export function getMasterFactoryAddress(chainId: number): Address {
+  if (chainId !== 5042002) {
+    throw new Error(`Only Arc Testnet (5042002) is supported. Use the bridge feature to transfer USDC to Arc Testnet.`);
   }
+  return process.env.NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_ARC!;
 }
 ```
 
@@ -200,10 +242,8 @@ UPSTASH_REDIS_REST_TOKEN=
 NEXTAUTH_URL=
 NEXTAUTH_SECRET=
 
-# Contract Addresses (multi-chain)
+# Contract Address (Arc Testnet only)
 NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_ARC=
-NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_CELO=
-NEXT_PUBLIC_MASTER_FACTORY_ADDRESS_SEPOLIA=
 
 # Admin (server-side only)
 ADMIN_WALLET_ADDRESS=
@@ -213,11 +253,19 @@ See `apps/web/.env.example` for complete list including Self Protocol verificati
 
 ## Current TODOs
 
-**WP1 (High Priority):**
-- Integrate Circle's Bridge Kit for cross-chain USDC deposits (enable deposits from Base, Arbitrum, Ethereum, Polygon → Arc escrows)
+**WP1 (Completed):**
+- ✅ Integrated Circle's Bridge Kit for cross-chain USDC deposits
+- ✅ Enabled bidirectional bridging (Sepolia, Base Sepolia, Arbitrum Sepolia ↔ Arc)
+- ✅ Removed Celo chain support in favor of USDC-only approach
+- ✅ Updated all escrow operations to use 6-decimal USDC
 
-**WP2 (Dispute Resolution Improvements):**
+**WP2 (Dispute Resolution Improvements - Next Priority):**
 - Add pre-arbitration negotiation period between parties (see `docs/Traditional-Escrow-Dispute-Resolution-Comparison.md`)
 - Allow both parties to submit evidence before arbiter decision
 - Integrate AI-powered resolution helper for arbiters
 - Address arbiter incentive asymmetry (current 5x compensation differential doesn't align with industry standards)
+
+**Future Enhancements:**
+- Add mainnet support (Base, Arbitrum, Ethereum, Polygon) for Bridge Kit
+- Add bridge transaction history tracking in user profile
+- Implement "auto-bridge and create" flow for smoother UX

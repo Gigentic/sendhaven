@@ -3,10 +3,10 @@ import { getStablecoinDecimals, getStablecoinSymbol } from "./escrow-config";
 
 /**
  * Format a bigint amount as a human-readable string with the correct currency symbol
- * Supports both Celo (18 decimals, cUSD) and Arc (6 decimals, USDC)
+ * All chains now use USDC (6 decimals)
  * @param amount Amount in smallest unit (bigint)
  * @param chainId Optional chain ID to determine decimals and symbol
- * @returns Formatted string like "100.00 cUSD" or "100.00 USDC"
+ * @returns Formatted string like "100.00 USDC"
  */
 export function formatAmount(amount: bigint, chainId?: number): string {
   const decimals = chainId ? getStablecoinDecimals(chainId) : 6;

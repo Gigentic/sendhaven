@@ -45,8 +45,8 @@ export function CreateEscrowFormCard({
   onReviewClick,
   chainId,
 }: CreateEscrowFormCardProps) {
-  const decimals = chainId ? getStablecoinDecimals(chainId) : 18;
-  const symbol = chainId ? getStablecoinSymbol(chainId) : 'cUSD';
+  const decimals = chainId ? getStablecoinDecimals(chainId) : 6;
+  const symbol = chainId ? getStablecoinSymbol(chainId) : 'USDC';
   return (
     <Card className="p-6">
       <div className="space-y-6">

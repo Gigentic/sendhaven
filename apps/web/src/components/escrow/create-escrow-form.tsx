@@ -17,6 +17,8 @@ import { useCreateEscrow } from "@/hooks/use-create-escrow";
 import { useApproveSpendingCap } from "@/hooks/use-approve-spending-cap";
 import { CreateEscrowFormCard } from "./create-escrow-form-card";
 import { CreateEscrowReviewModal } from "./create-escrow-review-modal";
+import BridgePrompt from "@/components/bridge/bridge-prompt";
+import { CHAIN_IDS, isOnArcTestnet } from "@/lib/bridge-config";
 
 /**
  * Create Escrow Form Component
@@ -59,7 +61,7 @@ export function CreateEscrowForm({ initialAmount }: { initialAmount?: string }) 
   });
 
   // Calculate if spending cap is sufficient
-  const decimals = chainId ? getStablecoinDecimals(chainId) : 18;
+  const decimals = chainId ? getStablecoinDecimals(chainId) : 6;
   const amountWei = amount ? parseUnits(amount, decimals) : 0n;
   const { total: totalRequired } = calculateTotalRequired(amountWei);
 
@@ -175,7 +177,7 @@ export function CreateEscrowForm({ initialAmount }: { initialAmount?: string }) 
     setError("");
 
     try {
-      const decimals = chainId ? getStablecoinDecimals(chainId) : 18;
+      const decimals = chainId ? getStablecoinDecimals(chainId) : 6;
       const amountWei = parseUnits(amount, decimals);
       const { total } = calculateTotalRequired(amountWei);
       await approveSpendingCapAsync(total);
@@ -197,7 +199,7 @@ export function CreateEscrowForm({ initialAmount }: { initialAmount?: string }) 
     setError("");
 
     try {
-      const decimals = chainId ? getStablecoinDecimals(chainId) : 18;
+      const decimals = chainId ? getStablecoinDecimals(chainId) : 6;
       const amountWei = parseUnits(amount, decimals);
 
       // Call the hook with properly typed parameters
@@ -230,6 +232,11 @@ export function CreateEscrowForm({ initialAmount }: { initialAmount?: string }) 
         <p className="text-muted-foreground">Please connect your wallet to create an escrow</p>
       </Card>
     );
+  }
+
+  // Show bridge prompt if user is not on Arc Testnet
+  if (!isOnArcTestnet(chainId)) {
+    return <BridgePrompt />;
   }
 
   return (

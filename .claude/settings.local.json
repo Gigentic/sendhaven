@@ -93,7 +93,8 @@
       "Bash(git commit:*)",
       "Bash(git remote add:*)",
       "Bash(git fetch:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "mcp__playwright__browser_run_code"
     ],
     "deny": [],
     "ask": []

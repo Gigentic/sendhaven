@@ -6,11 +6,10 @@ import { RainbowKitProvider, connectorsForWallets } from '@rainbow-me/rainbowkit
 import { SessionProvider } from 'next-auth/react'
 import {
   injectedWallet,
-  valoraWallet,
   // walletConnectWallet,
 } from "@rainbow-me/rainbowkit/wallets";
 import { WagmiProvider, createConfig, http, useConnect, useAccount, cookieStorage, createStorage, type State } from "wagmi";
-import { celo, hardhat } from 'wagmi/chains'
+import { sepolia, baseSepolia, arbitrumSepolia } from 'wagmi/chains'
 import { defineChain } from 'viem'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 import { useManualSign } from '@/hooks/use-manual-sign'
@@ -57,30 +56,6 @@ const arcTestnet = defineChain({
   testnet: true,
 })
 
-
-// Define Celo Sepolia chain
-const celoSepolia = defineChain({
-  id: 11142220,
-  name: 'Celo Sepolia',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'CELO',
-    symbol: 'CELO',
-  },
-  rpcUrls: {
-    default: {
-      http: ['https://forno.celo-sepolia.celo-testnet.org'],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: 'Celo Sepolia Blockscout',
-      url: 'https://celo-sepolia.blockscout.com',
-    },
-  },
-  testnet: true,
-})
-
 // Check if running on server (SSR) or client
 const isServer = typeof window === "undefined";
 
@@ -94,7 +69,6 @@ const connectors = isServer
           groupName: "Recommended",
           wallets: [
             injectedWallet,
-            valoraWallet,
             // walletConnectWallet,
           ],
         },
@@ -108,12 +82,13 @@ const connectors = isServer
 // Client-side wagmi config with conditional connectors
 // Used by WalletProvider component
 export const wagmiConfig = createConfig({
-  chains: [arcTestnet, celoSepolia, celo],
+  chains: [arcTestnet, sepolia, baseSepolia, arbitrumSepolia],
   connectors,
   transports: {
     [arcTestnet.id]: http(),
-    [celo.id]: http(),
-    [celoSepolia.id]: http(),
+    [sepolia.id]: http(),
+    [baseSepolia.id]: http(),
+    [arbitrumSepolia.id]: http(),
   },
   ssr: true,
   storage: createStorage({

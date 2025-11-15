@@ -1,13 +1,14 @@
 import { createConfig, http, cookieStorage, createStorage } from 'wagmi';
-import { celo } from 'wagmi/chains';
+import { sepolia, baseSepolia, arbitrumSepolia } from 'wagmi/chains';
 import { defineChain } from 'viem';
 
 // Define Arc Testnet chain
+// Note: Arc's native gas token uses 18 decimals, but the USDC ERC-20 token uses 6 decimals
 const arcTestnet = defineChain({
   id: 5042002,
   name: 'Arc Testnet',
   nativeCurrency: {
-    decimals: 18,
+    decimals: 18, // Native gas token uses 18 decimals
     name: 'USDC',
     symbol: 'USDC',
   },
@@ -25,38 +26,16 @@ const arcTestnet = defineChain({
   testnet: true,
 });
 
-// Define Celo Sepolia chain
-const celoSepolia = defineChain({
-  id: 11142220,
-  name: 'Celo Sepolia',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'CELO',
-    symbol: 'CELO',
-  },
-  rpcUrls: {
-    default: {
-      http: ['https://forno.celo-sepolia.celo-testnet.org'],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: 'Celo Sepolia Blockscout',
-      url: 'https://celo-sepolia.blockscout.com',
-    },
-  },
-  testnet: true,
-});
-
 // Server-side config for SSR with empty connectors
 // Used by layout.tsx for cookieToInitialState
 export const wagmiSsrConfig = createConfig({
-  chains: [arcTestnet, celoSepolia, celo],
+  chains: [arcTestnet, sepolia, baseSepolia, arbitrumSepolia],
   connectors: [],  // Empty connectors for server-side rendering
   transports: {
     [arcTestnet.id]: http(),
-    [celo.id]: http(),
-    [celoSepolia.id]: http(),
+    [sepolia.id]: http(),
+    [baseSepolia.id]: http(),
+    [arbitrumSepolia.id]: http(),
   },
   ssr: true,
   storage: createStorage({
