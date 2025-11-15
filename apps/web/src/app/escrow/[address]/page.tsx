@@ -10,6 +10,9 @@ import { EscrowSuccessModal } from "@/components/escrow/escrow-success-modal";
 import { useEscrowDetails } from "@/hooks/use-escrow-details";
 import { isParty as checkIsParty } from "@/lib/address-utils";
 import { getStablecoinDecimals } from "@/lib/escrow-config";
+import { isOnArcTestnet } from "@/lib/bridge-config";
+import BridgePrompt from "@/components/bridge/bridge-prompt";
+import { Card } from "@/components/ui/card";
 
 export default function EscrowDetailPage() {
   const params = useParams();
@@ -32,6 +35,21 @@ export default function EscrowDetailPage() {
 
   // Check if current user is a party to this escrow
   const isParty = details ? checkIsParty(userAddress, details) : false;
+
+  // Chain guard - escrows only exist on Arc Testnet
+  if (!isOnArcTestnet(chainId)) {
+    return (
+      <main className="flex-1 container mx-auto px-4 py-12">
+        <Card className="p-8 text-center max-w-2xl mx-auto">
+          <h2 className="text-xl font-bold mb-4">Switch to Arc Testnet</h2>
+          <p className="text-muted-foreground mb-6">
+            This escrow is deployed on Arc Testnet. Please switch your network to view details.
+          </p>
+          <BridgePrompt />
+        </Card>
+      </main>
+    );
+  }
 
   if (isLoading) {
     return (

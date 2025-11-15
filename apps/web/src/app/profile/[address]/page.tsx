@@ -16,6 +16,7 @@ import {
   getMasterFactoryAddress,
   MASTER_FACTORY_ABI,
 } from "@/lib/escrow-config";
+import { isOnArcTestnet } from "@/lib/bridge-config";
 
 export default function ProfilePage({ params }: { params: { address: string } }) {
   const profileAddress = params.address as Address;
@@ -31,19 +32,20 @@ export default function ProfilePage({ params }: { params: { address: string } })
     currentUserAddress &&
     currentUserAddress.toLowerCase() === profileAddress.toLowerCase();
 
-  // Fetch user's escrow addresses
+  // Fetch user's escrow addresses (only on Arc Testnet)
   const { data: userEscrowAddresses, isLoading: isLoadingEscrows } = useReadContract({
-    address: chainId ? getMasterFactoryAddress(chainId) : undefined,
+    address: chainId && isOnArcTestnet(chainId) ? getMasterFactoryAddress(chainId) : undefined,
     abi: MASTER_FACTORY_ABI,
     functionName: "getUserEscrows",
     args: [profileAddress],
     query: {
-      enabled: !!chainId,
+      enabled: !!chainId && isOnArcTestnet(chainId),
     },
   });
 
   // Calculate stats from escrow addresses (simplified - just counts)
-  const totalEscrows = userEscrowAddresses?.length || 0;
+  // Show null if not on Arc Testnet to indicate unavailable
+  const totalEscrows = isOnArcTestnet(chainId) ? (userEscrowAddresses?.length || 0) : null;
 
   // For now, we'll show simplified stats
   // To get completed count, we'd need to fetch each escrow's state (done in dashboard)
@@ -133,7 +135,11 @@ export default function ProfilePage({ params }: { params: { address: string } })
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Total Escrows</p>
-                <p className="text-3xl font-bold">{totalEscrows}</p>
+                {totalEscrows !== null ? (
+                  <p className="text-3xl font-bold">{totalEscrows}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Switch to Arc Testnet to view</p>
+                )}
               </div>
             </div>
           </Card>
@@ -153,7 +159,7 @@ export default function ProfilePage({ params }: { params: { address: string } })
         </div>
 
         {/* Empty state for new users */}
-        {totalEscrows === 0 && (
+        {totalEscrows === 0 && isOnArcTestnet(chainId) && (
           <Card className="p-8 text-center mt-6">
             <p className="text-muted-foreground mb-4">
               {isOwnProfile

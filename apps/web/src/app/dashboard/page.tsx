@@ -14,6 +14,8 @@ import { useUserEscrows } from "@/hooks/use-user-escrows";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { useEscrowFilters } from "@/hooks/use-escrow-filters";
 import { Loader2, SlidersHorizontal } from "lucide-react";
+import { isOnArcTestnet } from "@/lib/bridge-config";
+import BridgePrompt from "@/components/bridge/bridge-prompt";
 
 export default function DashboardPage() {
   // Protect this route - requires authentication
@@ -23,14 +25,14 @@ export default function DashboardPage() {
 
   const [showFilters, setShowFilters] = useState(false);
 
-  // Fetch user's escrow addresses from contract
+  // Fetch user's escrow addresses from contract (only on Arc Testnet)
   const { data: userEscrowAddresses } = useReadContract({
-    address: chainId ? getMasterFactoryAddress(chainId) : undefined,
+    address: chainId && isOnArcTestnet(chainId) ? getMasterFactoryAddress(chainId) : undefined,
     abi: MASTER_FACTORY_ABI,
     functionName: "getUserEscrows",
     args: address ? [address] : undefined,
     query: {
-      enabled: !!address && !!chainId,
+      enabled: !!address && !!chainId && isOnArcTestnet(chainId),
       staleTime: 0, // Always consider stale to ensure fresh data
       refetchOnMount: "always", // Always refetch on mount
       refetchOnWindowFocus: true, // Refetch when window regains focus
@@ -74,6 +76,15 @@ export default function DashboardPage() {
   if (!isConnected) {
     // This should never happen, but keep as fallback
     return null;
+  }
+
+  // Chain guard - only show dashboard on Arc Testnet
+  if (!isOnArcTestnet(chainId)) {
+    return (
+      <main className="flex-1 container mx-auto px-4 py-12">
+        <BridgePrompt />
+      </main>
+    );
   }
 
   return (
