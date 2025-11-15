@@ -92,7 +92,8 @@
       "Bash(git cherry-pick:*)",
       "Bash(git commit:*)",
       "Bash(git remote add:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

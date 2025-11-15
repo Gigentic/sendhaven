@@ -100,7 +100,7 @@ Thumbs.db
 .turbo
 
 # docs
-docs/drafts/
+docs
 
 .playwright-mcp/
 .vercel
