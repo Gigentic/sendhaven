@@ -2,6 +2,8 @@ packages:
   - apps/*
 
 onlyBuiltDependencies:
+  - '@vercel/speed-insights'
+  - blake-hash
   - bufferutil
   - esbuild
   - keccak
