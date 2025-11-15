@@ -1,0 +1,102 @@
+import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/server-auth";
+import { hashDocument } from "@/lib/hash";
+import { kvKeys, getKVClient } from "@/lib/kv";
+import { type Address } from "viem";
+
+/**
+ * POST /api/admin/resolve
+ * Store resolution document and return hash for on-chain transaction
+ * 
+ * The actual blockchain transaction (escrow.resolve()) must be done client-side
+ * This endpoint only stores the resolution document
+ * 
+ * Body:
+ * - escrowAddress: Address of the escrow
+ * - arbiter: Address of the arbiter (admin)
+ * - favorDepositor: boolean
+ * - disputeReason: string
+ * - deliverableReview: string
+ * - evidenceConsidered: string[]
+ * - decisionRationale: string
+ */
+export async function POST(request: Request) {
+  try {
+    // Check admin authorization using session
+    const admin = await requireAdmin();
+
+    const body = await request.json();
+    const {
+      escrowAddress,
+      chainId,
+      favorDepositor,
+      disputeReason,
+      deliverableReview,
+      evidenceConsidered,
+      decisionRationale,
+    } = body;
+
+    // Validate input
+    if (
+      !escrowAddress ||
+      !chainId ||
+      favorDepositor === undefined ||
+      !disputeReason ||
+      !deliverableReview ||
+      !evidenceConsidered ||
+      !decisionRationale
+    ) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Create resolution document
+    const resolutionDocument = {
+      escrowAddress,
+      arbiter: admin.address, // Use authenticated admin address from session
+      favorDepositor,
+      disputeReason,
+      deliverableReview,
+      evidenceConsidered,
+      decisionRationale,
+      resolvedAt: Date.now(),
+      transactionHash: "", // Will be updated after on-chain transaction
+    };
+
+    // Generate hash
+    const resolutionHash = hashDocument(resolutionDocument);
+
+    // Store in KV
+    const kv = getKVClient();
+    await kv.set(kvKeys.resolution(chainId, resolutionHash), resolutionDocument);
+
+    return NextResponse.json({
+      success: true,
+      resolutionHash,
+      message: "Resolution document stored. Use this hash to call escrow.resolve() on-chain.",
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "UNAUTHORIZED") {
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 }
+        );
+      }
+      if (error.message === "FORBIDDEN") {
+        return NextResponse.json(
+          { error: "Admin access required" },
+          { status: 403 }
+        );
+      }
+    }
+    console.error("Error storing resolution:", error);
+    return NextResponse.json(
+      { error: "Failed to store resolution" },
+      { status: 500 }
+    );
+  }
+}
+

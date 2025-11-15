@@ -1,0 +1,26 @@
+{
+  "name": "sendhaven",
+  "version": "0.1.0",
+  "description": "Send money through an escrow with built in AI dispute resolution",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "clean": "turbo clean",
+    "type-check": "turbo type-check"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@upstash/redis": "^1.35.6",
+    "dotenv": "^17.2.3",
+    "tsx": "^4.20.6",
+    "turbo": "^1.10.16",
+    "typescript": "^5.2.2"
+  },
+  "packageManager": "pnpm@10.18.2",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

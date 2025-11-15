@@ -1,0 +1,157 @@
+import { NextResponse } from "next/server";
+import { createPublicClient, defineChain, http, type Address } from "viem";
+import { celoSepolia, hardhat, celo } from "viem/chains";
+import { requireAdmin } from "@/lib/server-auth";
+import {
+  getMasterFactoryAddress,
+  MASTER_FACTORY_ABI,
+  ESCROW_CONTRACT_ABI,
+  EscrowState,
+} from "@/lib/escrow-config";
+
+// Arc Testnet chain definition
+const arcTestnet = defineChain({
+  id: 5042002,
+  name: 'Arc Testnet',
+  nativeCurrency: { decimals: 18, name: 'USDC', symbol: 'USDC' },
+  rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] } },
+  blockExplorers: { default: { name: 'Arcscan', url: 'https://testnet.arcscan.app' } },
+  testnet: true,
+});
+// Tell Next.js this route must be dynamic (server-rendered on demand)
+export const dynamic = 'force-dynamic';
+
+// Helper to get the correct chain based on chainId
+function getChain(chainId: number) {
+  switch (chainId) {
+    case 5042002:
+      return arcTestnet;
+    case 31337:
+      return hardhat;
+    case 42220:
+      return celo;
+    case 11142220:
+      return celoSepolia;
+    default:
+      return arcTestnet;
+  }
+}
+
+/**
+ * GET /api/admin/stats
+ * Get platform-wide statistics
+ * Requires admin wallet address in header
+ * Accepts chainId as query parameter
+ */
+export async function GET(request: Request) {
+  try {
+    // Check admin authorization using session
+    await requireAdmin();
+
+    // Get chainId from query params
+    const { searchParams } = new URL(request.url);
+    const chainIdParam = searchParams.get("chainId");
+
+    if (!chainIdParam) {
+      return NextResponse.json(
+        { error: "chainId query parameter is required" },
+        { status: 400 }
+      );
+    }
+
+    const chainId = parseInt(chainIdParam, 10);
+    const factoryAddress = getMasterFactoryAddress(chainId);
+
+    // Create public client
+    const publicClient = createPublicClient({
+      chain: getChain(chainId),
+      transport: http(),
+    });
+
+    // Get factory statistics
+    const factoryStats = await publicClient.readContract({
+      address: factoryAddress,
+      abi: MASTER_FACTORY_ABI,
+      functionName: "getStatistics",
+    });
+
+    // Get all escrows
+    const allEscrows = await publicClient.readContract({
+      address: factoryAddress,
+      abi: MASTER_FACTORY_ABI,
+      functionName: "getAllEscrows",
+    });
+
+    // Count escrows by state
+    let createdCount = 0;
+    let disputedCount = 0;
+    let completedCount = 0;
+    let refundedCount = 0;
+
+    for (const escrowAddress of allEscrows) {
+      try {
+        const details = await publicClient.readContract({
+          address: escrowAddress as Address,
+          abi: ESCROW_CONTRACT_ABI,
+          functionName: "getDetails",
+        });
+
+        const state = details[5] as EscrowState;
+
+        switch (state) {
+          case EscrowState.CREATED:
+            createdCount++;
+            break;
+          case EscrowState.DISPUTED:
+            disputedCount++;
+            break;
+          case EscrowState.COMPLETED:
+            completedCount++;
+            break;
+          case EscrowState.REFUNDED:
+            refundedCount++;
+            break;
+        }
+      } catch (error) {
+        console.error(`Error fetching escrow ${escrowAddress}:`, error);
+      }
+    }
+
+    return NextResponse.json({
+      totalEscrows: factoryStats[0].toString(),
+      volumeProcessed: factoryStats[1].toString(),
+      feesCollected: factoryStats[2].toString(),
+      escrowsByState: {
+        created: createdCount,
+        disputed: disputedCount,
+        completed: completedCount,
+        refunded: refundedCount,
+      },
+      successRate:
+        completedCount + refundedCount > 0
+          ? ((completedCount / (completedCount + refundedCount)) * 100).toFixed(2)
+          : "0",
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "UNAUTHORIZED") {
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 }
+        );
+      }
+      if (error.message === "FORBIDDEN") {
+        return NextResponse.json(
+          { error: "Admin access required" },
+          { status: 403 }
+        );
+      }
+    }
+    console.error("Error fetching stats:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch statistics" },
+      { status: 500 }
+    );
+  }
+}
+

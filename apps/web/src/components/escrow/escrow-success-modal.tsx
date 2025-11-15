@@ -1,0 +1,154 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import type { Address } from "viem";
+import { Button } from "@/components/ui/button";
+import { AddressDisplay } from "@/components/wallet/address-display";
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+} from "@/components/ui/responsive-dialog";
+import { Copy, Check } from "lucide-react";
+import { EscrowState, formatEscrowState, getStateColor, getStablecoinSymbol } from "@/lib/escrow-config";
+
+interface EscrowSuccessModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  escrowAddress: Address;
+  amount: string;
+  chainId?: number;
+}
+
+export function EscrowSuccessModal({
+  open,
+  onOpenChange,
+  escrowAddress,
+  amount,
+  chainId,
+}: EscrowSuccessModalProps) {
+  const router = useRouter();
+  const [copied, setCopied] = useState(false);
+
+  const escrowUrl = `${window.location.origin}/escrow/${escrowAddress}`;
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(escrowUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  const handleViewDashboard = () => {
+    onOpenChange(false);
+    router.push("/dashboard");
+  };
+
+  const handleCloseModal = () => {
+    onOpenChange(false);
+    // Remove success query parameter from URL
+    router.replace(`/escrow/${escrowAddress}`, { scroll: false });
+  };
+
+  return (
+    <ResponsiveDialog open={open} onOpenChange={handleCloseModal}>
+      <ResponsiveDialogContent className="sm:max-w-lg">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle className="text-2xl">
+            🎉 &nbsp;Escrow Created!
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
+            Your ${amount} {getStablecoinSymbol(chainId ?? 11142220)} escrow is now live
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
+
+        <div className="space-y-6 py-4">
+          {/* Escrow Info */}
+          <div className="rounded-lg border p-4 space-y-2 text-base">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Escrow address:</span>
+              <AddressDisplay showCopy={false} address={escrowAddress} />
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Status:</span>
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStateColor(EscrowState.CREATED as EscrowState)}`}>
+                {formatEscrowState(EscrowState.CREATED as EscrowState)}
+              </span>
+            </div>
+          </div>
+
+          {/* What's Next */}
+          <div className="space-y-4">
+            <h3 className="font-semibold">What's next?</h3>
+
+            <div className="space-y-4">
+              {/* Step 1: Share */}
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <span className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm">
+                    1
+                  </span>
+                  <span className="font-medium">Share with recipient</span>
+                </div>
+                <div className="ml-6 space-y-2">
+                  <div className="rounded-md border bg-muted/50 p-3">
+                    <p className="text-xs font-mono break-all text-muted-foreground mb-2">
+                      {escrowUrl}
+                    </p>
+                    <Button
+                      onClick={handleCopyLink}
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copy Link
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2: Delivery */}
+              <div className="flex items-start gap-2">
+                <span className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm">
+                  2
+                </span>
+                <span>They deliver the work</span>
+              </div>
+
+              {/* Step 3: Release */}
+              <div className="flex items-start gap-2">
+                <span className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm">
+                  3
+                </span>
+                <span>Release payment</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button onClick={handleCloseModal} className="flex-1">
+              Show Payment Details
+            </Button>
+          </div>
+        </div>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
+  );
+}
