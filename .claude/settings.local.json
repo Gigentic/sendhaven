@@ -94,7 +94,9 @@
       "Bash(git remote add:*)",
       "Bash(git fetch:*)",
       "Bash(test:*)",
-      "mcp__playwright__browser_run_code"
+      "mcp__playwright__browser_run_code",
+      "WebFetch(domain:sepolia.etherscan.io)",
+      "WebFetch(domain:testnet.arcscan.app)"
     ],
     "deny": [],
     "ask": []

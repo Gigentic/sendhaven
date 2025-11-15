@@ -36,7 +36,7 @@ const erc20Abi = [
 ] as const;
 
 export function useBridge() {
-  const { address, isConnected, chainId } = useAccount();
+  const { address, isConnected, chainId, connector } = useAccount();
   const { switchChain } = useSwitchChain();
 
   const [state, setState] = useState<BridgeState>({
@@ -195,14 +195,23 @@ export function useBridge() {
       try {
         setState((prev) => ({ ...prev, step: 'idle', error: null, isLoading: true }));
 
-        // Get the provider from window.ethereum
-        if (!window.ethereum) {
-          throw new Error('Wallet not found. Please install MetaMask or another Web3 wallet.');
+        // Get the provider from the connected wallet
+        if (!connector) {
+          throw new Error('No wallet connected. Please connect your wallet first.');
         }
 
-        // Create adapter from browser wallet provider
+        // Get provider from the connector - this is the simple approach
+        const provider = await connector.getProvider();
+
+        if (!provider) {
+          throw new Error('Failed to get provider from wallet. Please try reconnecting.');
+        }
+
+        console.log('Using provider from connector:', connector.name);
+
+        // Create adapter from the wallet's provider
         const adapter = await createAdapterFromProvider({
-          provider: window.ethereum as EIP1193Provider,
+          provider: provider as EIP1193Provider,
         });
 
         // Initialize Bridge Kit
@@ -311,7 +320,8 @@ export function useBridge() {
         // 4. Receive message transaction on destination chain
         setState((prev) => ({ ...prev, step: 'approving' }));
 
-        const result = await kit.bridge({
+        // Add timeout for bridge operation (2 minutes for fast transfers)
+        const bridgePromise = kit.bridge({
           from: {
             adapter: adapter,
             chain: sourceChain.chain,
@@ -322,6 +332,12 @@ export function useBridge() {
           },
           amount: amount,
         });
+
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Bridge timeout - this is taking longer than expected. Your USDC was burned on the source chain. You may need to manually complete the bridge using Circle\'s bridge interface.')), 2 * 60 * 1000); // 2 minutes (fast transfers should complete in 8-20 seconds)
+        });
+
+        const result = await Promise.race([bridgePromise, timeoutPromise]);
 
         console.log('Bridge result:', result);
 
@@ -346,11 +362,9 @@ export function useBridge() {
               // Mint/receive transaction on destination chain
               receiveTxHash = step.txHash;
               console.log('Found receiveTxHash from mint step:', receiveTxHash);
-            } else if (step.name === 'approve' && step.txHash && !sourceTxHash) {
-              // Approval transaction - use as fallback for source
-              sourceTxHash = step.txHash;
-              console.log('Using approval txHash as sourceTxHash fallback:', sourceTxHash);
             }
+            // Note: We intentionally do NOT use approval as fallback for sourceTxHash
+            // Only the burn transaction indicates the bridge actually started
           });
         } else {
           // Fallback: try other possible result structures
@@ -384,6 +398,16 @@ export function useBridge() {
         }
 
         console.log('Extracted transaction hashes:', { sourceTxHash, receiveTxHash });
+
+        // Validate that the bridge actually succeeded
+        // We MUST have the burn/transfer transaction (sourceTxHash) to consider the bridge started
+        // The approval transaction alone is NOT sufficient
+        if (!sourceTxHash) {
+          throw new Error(
+            'Bridge did not complete - no burn transaction found. Only the approval may have succeeded. ' +
+            'The transaction was likely cancelled before the actual bridge transfer.'
+          );
+        }
 
         // Bridge complete
         setState({
@@ -425,7 +449,7 @@ export function useBridge() {
         });
       }
     },
-    [address, isConnected, chainId, switchChain]
+    [address, isConnected, chainId, switchChain, connector]
   );
 
   // Reset bridge state

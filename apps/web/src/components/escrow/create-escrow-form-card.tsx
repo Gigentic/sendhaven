@@ -23,6 +23,7 @@ interface CreateEscrowFormCardProps {
   createError?: { message: string } | null;
   onReviewClick: () => void;
   chainId?: number;
+  disabled?: boolean;
 }
 
 /**
@@ -44,6 +45,7 @@ export function CreateEscrowFormCard({
   createError,
   onReviewClick,
   chainId,
+  disabled = false,
 }: CreateEscrowFormCardProps) {
   const decimals = chainId ? getStablecoinDecimals(chainId) : 6;
   const symbol = chainId ? getStablecoinSymbol(chainId) : 'USDC';
@@ -59,6 +61,7 @@ export function CreateEscrowFormCard({
             placeholder="0x..."
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
+            disabled={disabled}
           />
         </div>
 
@@ -71,6 +74,7 @@ export function CreateEscrowFormCard({
             placeholder="e.g. Logo design"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            disabled={disabled}
           />
         </div>
 
@@ -84,6 +88,7 @@ export function CreateEscrowFormCard({
             onChange={(e) => setDescription(e.target.value)}
             maxLength={10000}
             className="min-h-[100px]"
+            disabled={disabled}
           />
           <div className="flex justify-between items-center text-xs text-muted-foreground">
             <span>Be specific to avoid disputes</span>
@@ -109,6 +114,7 @@ export function CreateEscrowFormCard({
                 setAmount(value);
               }
             }}
+            disabled={disabled}
           />
         </div>
 
@@ -158,6 +164,7 @@ export function CreateEscrowFormCard({
           onClick={onReviewClick}
           className="w-full"
           size="lg"
+          disabled={disabled}
         >
           Review & Create Escrow
         </Button>

@@ -5,7 +5,8 @@ import '@rainbow-me/rainbowkit/styles.css'
 import { RainbowKitProvider, connectorsForWallets } from '@rainbow-me/rainbowkit'
 import { SessionProvider } from 'next-auth/react'
 import {
-  injectedWallet,
+  metaMaskWallet,
+  phantomWallet,
   // walletConnectWallet,
 } from "@rainbow-me/rainbowkit/wallets";
 import { WagmiProvider, createConfig, http, useConnect, useAccount, cookieStorage, createStorage, type State } from "wagmi";
@@ -68,7 +69,8 @@ const connectors = isServer
         {
           groupName: "Recommended",
           wallets: [
-            injectedWallet,
+            metaMaskWallet,
+            phantomWallet,
             // walletConnectWallet,
           ],
         },

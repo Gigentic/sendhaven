@@ -49,14 +49,14 @@ export function CreateEscrowForm({ initialAmount }: { initialAmount?: string }) 
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [approvalCompleted, setApprovalCompleted] = useState(false);
 
-  // Check cUSD balance
+  // Check cUSD balance (only on Arc Testnet)
   const { data: balance } = useReadContract({
-    address: chainId ? getCUSDAddress(chainId) : undefined,
+    address: chainId && isOnArcTestnet(chainId) ? getCUSDAddress(chainId) : undefined,
     abi: ERC20_ABI,
     functionName: "balanceOf",
     args: userAddress ? [userAddress] : undefined,
     query: {
-      enabled: !!userAddress && !!chainId,
+      enabled: !!userAddress && !!chainId && isOnArcTestnet(chainId),
     },
   });
 
@@ -65,14 +65,14 @@ export function CreateEscrowForm({ initialAmount }: { initialAmount?: string }) 
   const amountWei = amount ? parseUnits(amount, decimals) : 0n;
   const { total: totalRequired } = calculateTotalRequired(amountWei);
 
-  // Check current spending cap (allowance)
+  // Check current spending cap (allowance) (only on Arc Testnet)
   const { data: currentAllowance, refetch: refetchAllowance } = useReadContract({
-    address: chainId ? getCUSDAddress(chainId) : undefined,
+    address: chainId && isOnArcTestnet(chainId) ? getCUSDAddress(chainId) : undefined,
     abi: ERC20_ABI,
     functionName: "allowance",
-    args: userAddress && chainId ? [userAddress, getMasterFactoryAddress(chainId)] : undefined,
+    args: userAddress && chainId && isOnArcTestnet(chainId) ? [userAddress, getMasterFactoryAddress(chainId)] : undefined,
     query: {
-      enabled: !!userAddress && !!chainId,
+      enabled: !!userAddress && !!chainId && isOnArcTestnet(chainId),
       refetchInterval: allowanceRefetchKey > 0 ? 1000 : false, // Poll every 1s after approval
     },
   });
@@ -234,9 +234,46 @@ export function CreateEscrowForm({ initialAmount }: { initialAmount?: string }) 
     );
   }
 
-  // Show bridge prompt if user is not on Arc Testnet
-  if (!isOnArcTestnet(chainId)) {
-    return <BridgePrompt />;
+  // Check if user is on Arc Testnet
+  const isOnArc = isOnArcTestnet(chainId);
+
+  // Show form preview with bridge prompt if not on Arc
+  if (!isOnArc) {
+    return (
+      <div className="space-y-6">
+        {/* Bridge Prompt Banner */}
+        <BridgePrompt />
+
+        {/* Form Preview (disabled state) */}
+        <div className="max-w-2xl mx-auto relative">
+          <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] z-10 rounded-lg flex items-center justify-center">
+            <Card className="max-w-md p-6 text-center shadow-lg">
+              <p className="font-semibold mb-2">Bridge Required</p>
+              <p className="text-sm text-muted-foreground">
+                Complete the bridge above to create your escrow on Arc Testnet
+              </p>
+            </Card>
+          </div>
+          <CreateEscrowFormCard
+            recipient={recipient}
+            setRecipient={setRecipient}
+            title={title}
+            setTitle={setTitle}
+            description={description}
+            setDescription={setDescription}
+            amount={amount}
+            setAmount={setAmount}
+            balance={balance}
+            totalRequired={totalRequired}
+            error={null}
+            createError={null}
+            onReviewClick={() => {}}
+            chainId={chainId}
+            disabled={true}
+          />
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -10,6 +10,8 @@ import {
   getBridgeDirection,
   type BridgeDirection,
 } from '@/lib/bridge-config';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface BridgePromptProps {
   onBridgeComplete?: (amount: string) => void;
@@ -41,78 +43,76 @@ export default function BridgePrompt({ onBridgeComplete }: BridgePromptProps) {
   return (
     <>
       <div className="max-w-2xl mx-auto">
-        <div className="bg-gradient-to-br from-orange-50 to-emerald-50 border border-orange-200 rounded-2xl p-8 text-center">
-          {/* Icon */}
-          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Zap className="w-8 h-8 text-orange-600" />
-          </div>
-
-          {/* Title */}
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Bridge to Arc Testnet</h2>
-
-          {/* Description */}
-          <div className="text-gray-600 mb-6 space-y-2">
-            <p>
-              To create an escrow on SendHaven, you need USDC on <strong>Arc Testnet</strong>.
-            </p>
-            {isConnected && chainId && chainId !== CHAIN_IDS.ARC_TESTNET ? (
-              <p>
-                You're currently connected to <strong>{currentChainName}</strong>. Bridge your USDC
-                to Arc Testnet to get started.
-              </p>
-            ) : (
-              <p>Bridge your USDC from Ethereum, Base, or Arbitrum to Arc Testnet.</p>
-            )}
-          </div>
-
-          {/* Features */}
-          <div className="bg-white rounded-xl p-4 mb-6 text-left space-y-3">
-            <h3 className="font-semibold text-gray-900 mb-2">How it works:</h3>
-            <div className="space-y-2 text-sm text-gray-600">
-              <div className="flex items-start space-x-2">
-                <ArrowRight className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                <p>Select the amount of USDC you want to bridge to Arc Testnet</p>
-              </div>
-              <div className="flex items-start space-x-2">
-                <ArrowRight className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                <p>
-                  Approve the bridge transactions in your wallet (typically 2-3 transactions total)
-                </p>
-              </div>
-              <div className="flex items-start space-x-2">
-                <ArrowRight className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                <p>
-                  Your USDC will arrive on Arc Testnet in a few minutes (usually 2-5 minutes)
-                </p>
-              </div>
-              <div className="flex items-start space-x-2">
-                <ArrowRight className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                <p>Once complete, you can create your escrow on Arc Testnet!</p>
-              </div>
+        <Card>
+          <CardHeader className="text-center pb-4">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Zap className="w-8 h-8 text-primary" />
             </div>
-          </div>
+            <CardTitle className="text-2xl">Bridge to Arc Testnet</CardTitle>
+            <CardDescription className="text-base">
+              To create an escrow, you need USDC on <strong>Arc Testnet</strong>.
+              {isConnected && chainId && chainId !== CHAIN_IDS.ARC_TESTNET ? (
+                <>
+                  {' '}
+                  You're currently connected to <strong>{currentChainName}</strong>. Bridge your
+                  USDC to Arc Testnet to get started.
+                </>
+              ) : (
+                <> Bridge your USDC from Ethereum, Base, or Arbitrum to Arc Testnet.</>
+              )}
+            </CardDescription>
+          </CardHeader>
 
-          {/* Bridge Button */}
-          <button
-            onClick={handleOpenBridge}
-            disabled={!isConnected}
-            className={`w-full py-3 px-6 rounded-xl font-bold transition-all duration-300 ${
-              !isConnected
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-orange-500 to-emerald-500 text-white hover:shadow-lg hover:scale-105'
-            }`}
-          >
-            {!isConnected ? 'Connect Wallet to Bridge' : 'Open Bridge'}
-          </button>
+          <CardContent className="space-y-6">
+            {/* Features */}
+            <Card className="bg-muted/50">
+              <CardContent className="pt-6">
+                <h3 className="font-semibold mb-3">How it works:</h3>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <div className="flex items-start space-x-2">
+                    <ArrowRight className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                    <p>Select the amount of USDC you want to bridge to Arc Testnet</p>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <ArrowRight className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                    <p>
+                      Approve the bridge transactions in your wallet (typically 2-3 transactions
+                      total)
+                    </p>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <ArrowRight className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                    <p>
+                      Your USDC will arrive on Arc Testnet in a few minutes (usually 2-5 minutes)
+                    </p>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <ArrowRight className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                    <p>Once complete, you can create your escrow on Arc Testnet!</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Additional Info */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-xs text-gray-500">
-              SendHaven escrows are deployed on Arc Testnet. Arc uses USDC as the native token for
-              gas fees, making transactions seamless and cost-effective.
-            </p>
-          </div>
-        </div>
+            {/* Bridge Button */}
+            <Button
+              onClick={handleOpenBridge}
+              disabled={!isConnected}
+              className="w-full"
+              size="lg"
+            >
+              {!isConnected ? 'Connect Wallet to Bridge' : 'Open Bridge'}
+            </Button>
+
+            {/* Additional Info */}
+            <div className="pt-4 border-t">
+              <p className="text-xs text-muted-foreground text-center">
+                SendHaven escrows are deployed on Arc Testnet. Arc uses USDC as the native token
+                for gas fees, making transactions seamless and cost-effective.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Bridge Modal */}

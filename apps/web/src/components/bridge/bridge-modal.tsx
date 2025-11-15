@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, Loader2, CheckCircle, AlertCircle, ExternalLink, Clock, ArrowLeftRight } from 'lucide-react';
-import { useAccount } from 'wagmi';
+import { ArrowRight, Loader2, CheckCircle, AlertCircle, ExternalLink, Clock, ArrowLeftRight } from 'lucide-react';
+import { useAccount, useSwitchChain } from 'wagmi';
 import confetti from 'canvas-confetti';
 import { useBridge } from '@/hooks/use-bridge';
 import {
@@ -13,6 +13,17 @@ import {
   CHAIN_IDS,
   getChainName,
 } from '@/lib/bridge-config';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
 
 interface BridgeModalProps {
   isOpen: boolean;
@@ -20,34 +31,6 @@ interface BridgeModalProps {
   initialDirection?: BridgeDirection;
   initialAmount?: string;
 }
-
-// Step labels for better UX
-const STEP_LABELS: Record<BridgeStep, { title: string; description: string }> = {
-  idle: { title: 'Ready', description: 'Enter amount to bridge' },
-  'switching-network': {
-    title: 'Switching Network',
-    description: 'You will be asked to switch networks in your wallet',
-  },
-  approving: {
-    title: 'Bridge In Progress',
-    description:
-      'You will be asked to: (1) Approve USDC spend, (2) Confirm the transfer transaction, and (3) Confirm the receive message. Please approve each transaction in your wallet as they appear.',
-  },
-  'signing-bridge': {
-    title: 'Bridge In Progress',
-    description:
-      'You will be asked to approve transactions. Please approve each as it appears.',
-  },
-  'waiting-receive-message': {
-    title: 'Bridge In Progress',
-    description: 'Waiting for receive message confirmation on destination chain.',
-  },
-  success: {
-    title: 'Bridge Successful',
-    description: 'Your USDC has been successfully transferred!',
-  },
-  error: { title: 'Bridge Failed', description: 'Bridge transaction failed. Please try again.' },
-};
 
 // Helper to get block explorer URL
 function getExplorerUrl(chainId: number, txHash: string): string {
@@ -117,6 +100,7 @@ export default function BridgeModal({
   initialAmount,
 }: BridgeModalProps) {
   const { address, isConnected, chainId } = useAccount();
+  const { switchChain, isPending: isSwitchingChain } = useSwitchChain();
 
   const [amount, setAmount] = useState(initialAmount || '');
   const selectedToken: BridgeToken = 'USDC'; // Only USDC supported
@@ -261,75 +245,58 @@ export default function BridgeModal({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      onClick={handleClose}
-    >
-      <div
-        className="bg-white rounded-2xl p-8 max-w-2xl w-full shadow-2xl relative overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Bridge USDC</h2>
-            <p className="text-sm text-gray-600">Transfer USDC across chains</p>
-          </div>
-          <button
-            onClick={handleClose}
-            className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-all"
-          >
-            <X className="w-5 h-5 text-gray-600" />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Bridge USDC</DialogTitle>
+          <DialogDescription>Transfer USDC across chains</DialogDescription>
+        </DialogHeader>
 
-        {/* Content */}
-        <div>
+        <div className="space-y-6">
           {state.step === 'idle' && (
-            <div className="space-y-6">
+            <>
               {/* Chain Display with Swap Button */}
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200">
+              <Card className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-center flex-1">
-                    <p className="text-xs text-gray-600 mb-1">From</p>
-                    <p className="font-bold text-gray-900">{sourceChainName}</p>
-                    <p className="text-xs text-gray-500 mt-1">Chain ID: {sourceChainId}</p>
+                    <p className="text-xs text-muted-foreground mb-1">From</p>
+                    <p className="font-bold">{sourceChainName}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Chain ID: {sourceChainId}</p>
                   </div>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="icon"
                     onClick={() => setDirection(toggleDirection(direction))}
                     disabled={state.isLoading}
-                    className="mx-4 p-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 hover:border-orange-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Swap chains"
                   >
-                    <ArrowLeftRight className="w-5 h-5 text-gray-600" />
-                  </button>
+                    <ArrowLeftRight className="h-4 w-4" />
+                  </Button>
                   <div className="text-center flex-1">
-                    <p className="text-xs text-gray-600 mb-1">To</p>
-                    <p className="font-bold text-gray-900">{destinationChainName}</p>
-                    <p className="text-xs text-gray-500 mt-1">Chain ID: {destinationChainId}</p>
+                    <p className="text-xs text-muted-foreground mb-1">To</p>
+                    <p className="font-bold">{destinationChainName}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Chain ID: {destinationChainId}</p>
                   </div>
                 </div>
-              </div>
+              </Card>
 
               {/* Token Balance Display */}
               {isConnected && address && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <Card className="p-4 bg-accent">
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <p className="text-xs text-emerald-700 font-medium mb-1">
+                      <p className="text-xs font-medium mb-1">
                         {sourceChainName} {selectedToken} Balance
                       </p>
                       {isLoadingBalance ? (
                         <div className="flex items-center space-x-2">
-                          <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
-                          <span className="text-sm text-emerald-800">Loading...</span>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Loading...</span>
                         </div>
                       ) : (
-                        <p className="text-lg font-bold text-emerald-900">
+                        <p className="text-lg font-bold">
                           {parseFloat(tokenBalance) > 0
                             ? `${parseFloat(tokenBalance).toFixed(2)} ${selectedToken}`
                             : `0.00 ${selectedToken}`}
@@ -338,7 +305,7 @@ export default function BridgeModal({
                     </div>
                     <div className="text-right">
                       {CHAIN_TOKENS[sourceChainId] && (
-                        <p className="text-xs text-emerald-600 font-mono">
+                        <p className="text-xs text-muted-foreground font-mono">
                           {CHAIN_TOKENS[sourceChainId][selectedToken].contractAddress.slice(0, 6)}
                           ...
                           {CHAIN_TOKENS[sourceChainId][selectedToken].contractAddress.slice(-4)}
@@ -347,130 +314,123 @@ export default function BridgeModal({
                     </div>
                   </div>
                   {balanceError && (
-                    <div className="mt-2 pt-2 border-t border-emerald-200">
-                      <p className="text-xs text-amber-600">⚠️ {balanceError}</p>
+                    <div className="mt-2 pt-2 border-t">
+                      <p className="text-xs text-destructive">⚠️ {balanceError}</p>
                     </div>
                   )}
                   {parseFloat(tokenBalance) === 0 && !isLoadingBalance && !balanceError && (
-                    <div className="mt-3 pt-3 border-t border-emerald-200">
-                      <p className="text-xs text-emerald-700 mb-2">
+                    <div className="mt-3 pt-3 border-t">
+                      <p className="text-xs mb-2">
                         ⚠️ You need {selectedToken} at the Bridge Kit contract address to bridge
                       </p>
                       <a
                         href="https://faucet.circle.com/"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-800 font-medium underline"
+                        className="inline-flex items-center space-x-1 text-xs text-primary hover:underline font-medium"
                       >
                         <span>Get {selectedToken} from Circle Faucet</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
                   )}
-                </div>
+                </Card>
               )}
 
               {/* Amount Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Amount ({selectedToken})
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="amount">Amount ({selectedToken})</Label>
+                <Input
+                  id="amount"
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
                   step="0.01"
                   min="0"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                   disabled={state.isLoading}
                 />
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-muted-foreground">
                   Enter the {selectedToken} amount you want to bridge to {destinationChainName}
                 </p>
               </div>
 
               {/* Warning if not on source chain */}
               {isConnected && chainId !== sourceChainId && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                <Card className="p-3 bg-destructive/10 border-destructive/20">
                   <div className="flex items-start space-x-2">
-                    <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                    <div className="text-sm text-yellow-800">
+                    <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
+                    <div className="text-sm">
                       <p className="font-medium">Switch to {sourceChainName}</p>
-                      <p className="text-xs mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         You'll need to switch to {sourceChainName} network to bridge tokens. We'll
                         prompt you during the bridge process.
                       </p>
                     </div>
                   </div>
-                </div>
+                </Card>
               )}
 
               {/* Connect Wallet Prompt */}
               {!isConnected && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-                  <p className="text-sm text-blue-800">Please connect your wallet to bridge tokens</p>
-                </div>
+                <Card className="p-4 bg-muted text-center">
+                  <p className="text-sm">Please connect your wallet to bridge tokens</p>
+                </Card>
               )}
 
               {/* Bridge Button */}
-              <button
+              <Button
                 onClick={handleBridge}
                 disabled={
                   !isConnected || !amount || parseFloat(amount) <= 0 || state.isLoading
                 }
-                className={`w-full py-3 rounded-xl font-bold transition-all duration-300 ${
-                  !isConnected || !amount || parseFloat(amount) <= 0 || state.isLoading
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-orange-500 to-emerald-500 text-white hover:shadow-lg hover:scale-105'
-                }`}
+                className="w-full"
+                size="lg"
               >
                 {state.isLoading ? 'Processing...' : `Bridge ${selectedToken}`}
-              </button>
-            </div>
+              </Button>
+            </>
           )}
 
           {/* Bridge In Progress */}
           {state.step !== 'idle' && state.step !== 'success' && state.step !== 'error' && (
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200 text-center">
-                <Loader2 className="w-16 h-16 text-orange-500 animate-spin mx-auto mb-4" />
+            <Card className="p-6 text-center">
+              <Loader2 className="w-16 h-16 animate-spin mx-auto mb-4 text-primary" />
 
-                {/* Timer Display */}
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-1">Bridge in Progress</p>
-                  <div className="flex items-center justify-center space-x-2">
-                    <Clock className="w-5 h-5 text-orange-500" />
-                    <p className="text-2xl font-bold text-gray-900 font-mono">
-                      {formatTime(elapsedTime)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Status Message */}
-                <div className="space-y-2">
-                  <p className="text-lg font-bold text-gray-900">
-                    {state.step === 'switching-network' ? 'Switching Network' : 'Processing Bridge'}
-                  </p>
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    {state.step === 'switching-network'
-                      ? `You will be asked to switch to ${sourceChainName} network in your wallet.`
-                      : `You will be asked to approve transactions in your wallet. Please approve each transaction as it appears. The bridge will automatically handle the transfer and receive message confirmation.`}
+              {/* Timer Display */}
+              <div className="mb-4">
+                <p className="text-sm text-muted-foreground mb-1">Bridge in Progress</p>
+                <div className="flex items-center justify-center space-x-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                  <p className="text-2xl font-bold font-mono">
+                    {formatTime(elapsedTime)}
                   </p>
                 </div>
               </div>
-            </div>
+
+              {/* Status Message */}
+              <div className="space-y-2">
+                <p className="text-lg font-bold">
+                  {state.step === 'switching-network' ? 'Switching Network' : 'Processing Bridge'}
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {state.step === 'switching-network'
+                    ? `You will be asked to switch to ${sourceChainName} network in your wallet.`
+                    : `You will be asked to approve transactions in your wallet. Please approve each transaction as it appears. The bridge will automatically handle the transfer and receive message confirmation.`}
+                </p>
+              </div>
+            </Card>
           )}
 
           {/* Success */}
           {state.step === 'success' && (
             <div className="space-y-4 text-center">
-              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle className="w-10 h-10 text-emerald-600" />
+              <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle className="w-10 h-10 text-primary" />
               </div>
               <div>
-                <p className="text-lg font-bold text-gray-900 mb-2">Bridge Successful!</p>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-lg font-bold mb-2">Bridge Successful!</p>
+                <p className="text-sm text-muted-foreground mb-4">
                   Your {selectedToken} has been successfully transferred from {sourceChainName} to{' '}
                   {destinationChainName}.
                 </p>
@@ -482,7 +442,7 @@ export default function BridgeModal({
                       href={getExplorerUrl(sourceChainId, state.sourceTxHash)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center space-x-2 text-orange-600 hover:text-orange-700 text-sm block"
+                      className="inline-flex items-center space-x-2 text-primary hover:underline text-sm block"
                     >
                       <span>View {sourceChainName} Transaction</span>
                       <ExternalLink className="w-4 h-4" />
@@ -493,7 +453,7 @@ export default function BridgeModal({
                       href={getExplorerUrl(destinationChainId, state.receiveTxHash)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center space-x-2 text-orange-600 hover:text-orange-700 text-sm block"
+                      className="inline-flex items-center space-x-2 text-primary hover:underline text-sm block"
                     >
                       <span>View Receive Message Transaction</span>
                       <ExternalLink className="w-4 h-4" />
@@ -501,45 +461,61 @@ export default function BridgeModal({
                   )}
                 </div>
               </div>
-              <button
-                onClick={handleClose}
-                className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
-              >
+
+              {/* Switch Network Prompt (if bridged to Arc and not currently on Arc) */}
+              {destinationChainId === CHAIN_IDS.ARC_TESTNET && chainId !== CHAIN_IDS.ARC_TESTNET && (
+                <Card className="p-4 bg-muted/50 text-left">
+                  <p className="text-sm font-medium mb-2">Ready to create an escrow?</p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Switch to Arc Testnet to start creating escrows with your bridged USDC.
+                  </p>
+                  <Button
+                    onClick={() => switchChain({ chainId: CHAIN_IDS.ARC_TESTNET })}
+                    disabled={isSwitchingChain}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    {isSwitchingChain ? 'Switching...' : 'Switch to Arc Testnet'}
+                  </Button>
+                </Card>
+              )}
+
+              <Button onClick={handleClose} size="lg" className="w-full">
                 Close
-              </button>
+              </Button>
             </div>
           )}
 
           {/* Error */}
           {state.step === 'error' && (
             <div className="space-y-4 text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-                <AlertCircle className="w-10 h-10 text-red-600" />
+              <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto">
+                <AlertCircle className="w-10 h-10 text-destructive" />
               </div>
               <div>
-                <p className="text-lg font-bold text-gray-900 mb-2">Bridge Failed</p>
-                <div className="text-sm text-red-600 mb-4 max-h-40 overflow-y-auto text-left bg-red-50 p-3 rounded-lg">
-                  <p className="whitespace-pre-wrap break-words">{state.error}</p>
-                </div>
-                <p className="text-xs text-gray-500 mb-4">
+                <p className="text-lg font-bold mb-2">Bridge Failed</p>
+                <Card className="p-3 bg-destructive/10 border-destructive/20 mb-4 max-h-40 overflow-y-auto text-left">
+                  <p className="text-sm text-destructive whitespace-pre-wrap break-words">{state.error}</p>
+                </Card>
+                <p className="text-xs text-muted-foreground mb-4">
                   Check the browser console for detailed {selectedToken} contract address information.
                 </p>
-                <button
+                <Button
                   onClick={() => {
                     reset();
                     if (!initialAmount) {
                       setAmount('');
                     }
                   }}
-                  className="px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
                 >
                   Try Again
-                </button>
+                </Button>
               </div>
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
